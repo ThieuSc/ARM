@@ -75,7 +75,7 @@ Alles wordt centraal aangestuurd via `main.json`.
 ### Deploy via Azure CLI
 
 Twéé resource groups aanmaken, bijvoorbeeld LabSec en LabSec-Stack
-``` poweshell
+``` powershell
 New-AzResourceGroup -Name LabSec -Location francecentral
 New-AzResourceGroup -Name LabSec-Stack -Location francecentral
 ```
