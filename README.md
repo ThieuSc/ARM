@@ -33,6 +33,7 @@ De infrastructuur bestaat uit:
 * **Firewall**
     
     * Azure Firewall (Basic) met publieke IP’s
+      (Voorbereid enkel firewall + rules en routetable via Azure portal toevoegen)
         
 
 Alles wordt centraal aangestuurd via `main.json`.
