@@ -153,6 +153,7 @@ Dit project is bewust modulair opgezet:
 * Azure Bastion 
 * Log Analytics / Azure Monitor
 * Private Endpoints
+* Cloud-init voor wazuh install (voorbereid)
     
 
 ## Licentie
