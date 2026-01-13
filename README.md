@@ -130,7 +130,7 @@ Standaard worden de volgende VM’s aangemaakt:
 
 VM’s kunnen eenvoudig **aan/uit** gezet worden via de `enabled` property in `main.json`.
 
-## 🔐 Security
+## Security
 
 * Inbound SSH (TCP/22) toegestaan per ASG 
 * Outbound internet toegestaan
@@ -138,7 +138,7 @@ VM’s kunnen eenvoudig **aan/uit** gezet worden via de `enabled` property in `m
 * ASG’s worden gebruikt voor gerichte security rules
     
 
-## 🧩 Modulariteit
+## Modulariteit
 
 Dit project is bewust modulair opgezet:
 
@@ -147,7 +147,7 @@ Dit project is bewust modulair opgezet:
 * VM’s kunnen onafhankelijk worden aangepast
     
 
-## 📌 Toekomstige uitbreidingen
+## Toekomstige uitbreidingen
 
 * Firewall rules & policies
 * Azure Bastion 
@@ -155,6 +155,6 @@ Dit project is bewust modulair opgezet:
 * Private Endpoints
     
 
-## 📄 Licentie
+## Licentie
 
 Vrij te gebruiken voor interne en educatieve doeleinden.
