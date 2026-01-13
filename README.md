@@ -131,6 +131,45 @@ Standaard worden de volgende VM’s aangemaakt:
 
 VM’s kunnen eenvoudig **aan/uit** gezet worden via de `enabled` property in `main.json`.
 
+## Azure Firewal
+De Azure firewall en route table moeten via Azure portal worden aangemaakt.
+
+### Azure Firewall – Application Rules
+
+| Naam | Type | Protocol | Poort | Source Address | Target FQDN(s) | Actie | Omschrijving |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `allowInternet` | Application Rule | HTTP / HTTPS | 80 / 443 | `10.10.10.10` | `*` | Allow | Staat outbound internetverkeer toe vanaf de Wazuh dashboard VM |
+
+### Azure Firewall – DNAT Rules
+
+| Naam | Protocol | Public IP | Public Poort | Private IP | Private Poort | Source | Omschrijving |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `allowSSHDash` | TCP | `4.211.129.89` | 22 | `10.10.10.10` | 22 | `*` | SSH toegang tot Wazuh dashboard |
+| `allowWazuh` | TCP | `4.211.129.89` | 443 | `10.10.10.10` | 443 | `*` | HTTPS toegang tot Wazuh dashboard |
+| `allowWazuhAgentConn` | TCP | `4.211.129.89` | 1514 | `10.10.10.10` | 1514 | `*` | Wazuh agent data verbinding |
+| `allowWazuhAgentEnRoll` | TCP | `4.211.129.89` | 1515 | `10.10.10.10` | 1515 | `*` | Wazuh agent enrollment |
+
+### Route Table Overzicht
+
+| Naam | Address Prefix | Next Hop Type | Next Hop IP | Doel |
+| --- | --- | --- | --- | --- |
+| `toFirewall` | `0.0.0.0/0` | VirtualAppliance | `10.20.20.4` | Forceert al uitgaand verkeer via de Azure Firewall |
+
+## wazuh quickstart
+
+Verbind met wazuh dashboard vm
+``` cmd
+ssh -i <pad naar private key> <gebruikersnaam>@<firewall public ip>
+```
+Installeer wazuh quickstart
+``` zsh
+sudo tar -O -xvf wazuh-install-files.tar wazuh-install-files/wazuh-passwords.txt
+```
+check passwords na installatie
+``` zsh
+sudo tar -O -xvf wazuh-install-files.tar wazuh-install-files/wazuh-passwords.txt
+```
+
 ## Security
 
 * Inbound SSH (TCP/22) toegestaan per ASG 
@@ -138,7 +177,6 @@ VM’s kunnen eenvoudig **aan/uit** gezet worden via de `enabled` property in `m
 * NSG’s zijn dynamisch gekoppeld aan subnetten 
 * ASG’s worden gebruikt voor gerichte security rules
     
-
 ## Modulariteit
 
 Dit project is bewust modulair opgezet:
@@ -146,16 +184,12 @@ Dit project is bewust modulair opgezet:
 * Templates zijn herbruikbaar  
 * Netwerk en security zijn los te beheren
 * VM’s kunnen onafhankelijk worden aangepast
-    
 
 ## Toekomstige uitbreidingen
 
 * Firewall rules & policies
-* Azure Bastion 
-* Log Analytics / Azure Monitor
-* Private Endpoints
 * Cloud-init voor wazuh install (voorbereid)
-    
+* wazuh Schaalbaar waarin componenten op eigen vm
 
 ## Licentie
 
