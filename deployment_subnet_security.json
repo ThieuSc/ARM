@@ -1,0 +1,254 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]"
+        },
+        "wazuhDashboardSubnet": {
+            "type": "object",
+            "defaultvalue": {
+                "subnetId": "",
+                "name": ""
+            }
+        },
+        "wazuhServerSubnet": {
+            "type": "object",
+            "defaultvalue": {
+                "subnetId": "",
+                "name": ""
+            }
+        },
+        "wazuhIndexerSubnet": {
+            "type": "object",
+            "defaultvalue": {
+                "subnetId": "",
+                "name": ""
+            }
+        }
+    },
+    "variables": {
+        "asgDashboardName": "[concat(parameters('wazuhDashboardSubnet').name, '-asg')]",
+        "asgDashboardId": "[resourceId('Microsoft.Network/applicationSecurityGroups', variables('asgDashboardName'))]",
+        "nsgDashboardName": "[concat(parameters('wazuhDashboardSubnet').name, '-nsg')]",
+        "nsgDashboardId": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgDashboardName'))]",
+
+        "asgServerName": "[concat(parameters('wazuhServerSubnet').name, '-asg')]",
+        "asgServerId": "[resourceId('Microsoft.Network/applicationSecurityGroups', variables('asgServerName'))]",
+        "nsgServerName": "[concat(parameters('wazuhServerSubnet').name, '-nsg')]",
+        "nsgServerId": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgServerName'))]",
+
+        "asgIndexerName": "[concat(parameters('wazuhIndexerSubnet').name, '-asg')]",
+        "asgIndexerId": "[resourceId('Microsoft.Network/applicationSecurityGroups', variables('asgIndexerName'))]",
+        "nsgIndexerName": "[concat(parameters('wazuhIndexerSubnet').name, '-nsg')]",
+        "nsgIndexerId": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgIndexerName'))]"
+
+    },
+    "resources": [
+        {
+            "name": "[variables('asgDashboardName')]",
+            "type": "Microsoft.Network/applicationSecurityGroups",
+            "apiVersion": "2024-05-01",
+            "location": "[parameters('location')]",
+            "properties": {}
+        },
+
+        {
+            "name": "[variables('asgServerName')]",
+            "type": "Microsoft.Network/applicationSecurityGroups",
+            "apiVersion": "2024-05-01",
+            "location": "[parameters('location')]",
+            "properties": {}
+        },
+        {
+            "name": "[variables('asgIndexerName')]",
+            "type": "Microsoft.Network/applicationSecurityGroups",
+            "apiVersion": "2024-05-01",
+            "location": "[parameters('location')]",
+            "properties": {}
+        },
+        {
+            "name": "[variables('nsgDashboardName')]",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2024-05-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[variables('asgDashboardName')]"
+            ],
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "SSH",
+                        "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                        "properties": {
+                            "protocol": "TCP",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 120,
+                            "direction": "Inbound",
+                            "destinationApplicationSecurityGroups": [
+                                {
+                                    "id": "[variables('asgDashboardId')]"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "allowInternet",
+                        "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 110,
+                            "direction": "Outbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": [],
+                            "sourceApplicationSecurityGroups": [
+                                {
+                                    "id": "[variables('asgDashboardId')]"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "[variables('nsgServerName')]",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2024-05-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[variables('asgServerName')]"
+            ],
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "SSH",
+                        "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                        "properties": {
+                            "protocol": "TCP",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 120,
+                            "direction": "Inbound",
+                            "destinationApplicationSecurityGroups": [
+                                {
+                                    "id": "[variables('asgServerId')]"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "allowInternet",
+                        "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 110,
+                            "direction": "Outbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": [],
+                            "sourceApplicationSecurityGroups": [
+                                {
+                                    "id": "[variables('asgServerId')]"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "[variables('nsgIndexerName')]",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2024-05-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[variables('asgIndexerName')]"
+            ],
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "SSH",
+                        "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                        "properties": {
+                            "protocol": "TCP",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "22",
+                            "sourceAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 120,
+                            "direction": "Inbound",
+                            "destinationApplicationSecurityGroups": [
+                                {
+                                    "id": "[variables('asgIndexerId')]"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "allowInternet",
+                        "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 110,
+                            "direction": "Outbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": [],
+                            "sourceApplicationSecurityGroups": [
+                                {
+                                    "id": "[variables('asgIndexerId')]"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "outputs": {
+        "wazuhDashboard": {
+            "type": "object",
+            "value": {
+                "ASGId": "[variables('asgDashboardId')]",
+                "NSGId": "[variables('nsgDashboardId')]"
+            }
+        },
+        "wazuhServer": {
+            "type": "object",
+            "value": {
+                "ASGId": "[variables('asgServerId')]",
+                "NSGId": "[variables('nsgServerId')]"
+            }
+        },
+        "wazuhIndexer": {
+            "type": "object",
+            "value": {
+                "ASGId": "[variables('asgIndexerId')]",
+                "NSGId": "[variables('nsgIndexerId')]"
+            }
+        }
+    }
+}

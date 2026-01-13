@@ -1,0 +1,198 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]"
+        },
+        "vNetNameWazuh": {
+            "type": "string",
+            "defaultValue": "Wazuh"
+        },
+        "vNetNameIngest": {
+            "type": "string",
+            "defaultValue": "ingest"
+        },
+        "adminPublicKey": {
+            "type": "string"
+        },
+        "adminUsername": {
+            "type": "string"
+        }
+    },
+    "functions": [],
+    "variables": {},
+    "resources": [
+        // network
+        // security
+        // network update met nsgid
+        // peering
+        // vms
+        {
+            "name": "network",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2024-11-01",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "relativePath": "deployment_network.json"
+                },
+                "parameters": {
+                    "location": { "value": "[parameters('location')]" },
+                    "vNetNameWazuh": { "value": "[parameters('vNetNameWazuh')]" },
+                    "vNetNameIngest": { "value": "[parameters('vNetNameIngest')]" }
+                }
+            }
+        },
+        {
+            "name": "subnet_security",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2024-11-01",
+            "dependsOn": [ "network" ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "relativePath": "deployment_subnet_security.json"
+                },
+                "parameters": {
+                    "location": { "value": "[parameters('location')]" },
+                    "wazuhDashboardSubnet": {
+                        "value": {
+                            "subnetId": "[reference('network').outputs.wazuhDashboardSubnet.value.subnetId]",
+                            "name": "[reference('network').outputs.wazuhDashboardSubnet.value.name]"
+                        }
+                    },
+                    "wazuhServerSubnet": {
+                        "value": {
+                            "subnetId": "[reference('network').outputs.wazuhServerSubnet.value.subnetId]",
+                            "name": "[reference('network').outputs.wazuhServerSubnet.value.name]"
+                        }
+                    },
+                    "wazuhIndexerSubnet": {
+                        "value": {
+                            "subnetId": "[reference('network').outputs.wazuhIndexerSubnet.value.subnetId]",
+                            "name": "[reference('network').outputs.wazuhIndexerSubnet.value.name]"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "name": "network_nsgid",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2024-11-01",
+            "dependsOn": [ "subnet_security" ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "relativePath": "deployment_network.json"
+                },
+                "parameters": {
+                    "location": { "value": "[parameters('location')]" },
+                    "vNetNameWazuh": { "value": "[parameters('vNetNameWazuh')]" },
+                    "vNetNameIngest": { "value": "[parameters('vNetNameIngest')]" },
+                    "wazuhSubnets": {
+                        "value": [
+                            {
+                                "name": "dashboard",
+                                "prefix": "10.10.10.0/24",
+                                "nsgId": "[reference('subnet_security').outputs.wazuhDashboard.value.NSGId]"
+                            },
+                            {
+                                "name": "server",
+                                "prefix": "10.10.20.0/24",
+                                "nsgId": "[reference('subnet_security').outputs.wazuhServer.value.NSGId]"
+                            },
+                            {
+                                "name": "indexer",
+                                "prefix": "10.10.30.0/24",
+                                "nsgId": "[reference('subnet_security').outputs.wazuhIndexer.value.NSGId]"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "name": "network_peering",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2024-11-01",
+            "dependsOn": [ "network_nsgid" ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "relativePath": "deployment_network_peering.json"
+                },
+                "parameters": {
+                    "vNetNameWazuh": { "value": "[parameters('vNetNameWazuh')]" },
+                    "vNetNameIngest": { "value": "[parameters('vNetNameIngest')]" }
+                }
+            }
+        },
+        {
+            "name": "virtual_machines",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2024-11-01",
+            "dependsOn": [ "network_peering" ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "relativePath": "deployment_virtualmachines.json"
+                },
+                "parameters": {
+                    "location": { "value": "[parameters('location')]" },
+                    "vms": {
+                        "value": [
+                            {
+                                "name": "wazuh-dashboard",
+                                "enabled": true,
+                                "vmSize": "Standard_B4als_v2",
+                                "privateIpAddress": "10.10.10.10",
+                                "subnetId": "[reference('network_nsgid').outputs.wazuhDashboardSubnet.value.subnetId]",
+                                "asgId": "[reference('subnet_security').outputs.wazuhDashboard.value.ASGId]",
+                                "cloudInit": ""//"#cloud-config\nruncmd:\n  - [ bash, -lc, \"curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && sudo bash ./wazuh-install.sh -a\" ]\n"
+                            },
+                            {
+                                "name": "wazuh-server",
+                                "enabled": true,
+                                "vmSize": "Standard_B1s",
+                                "privateIpAddress": "10.10.20.10",
+                                "subnetId": "[reference('network_nsgid').outputs.wazuhServerSubnet.value.subnetId]",
+                                "asgId": "[reference('subnet_security').outputs.wazuhServer.value.ASGId]",
+                                "cloudInit": ""
+                            },
+                            {
+                                "name": "wazuh-indexer",
+                                "enabled": false,
+                                "vmSize": "Standard_B1s",
+                                "privateIpAddress": "10.10.30.10",
+                                "subnetId": "[reference('network_nsgid').outputs.wazuhIndexerSubnet.value.subnetId]",
+                                "asgId": "[reference('subnet_security').outputs.wazuhIndexer.value.ASGId]",
+                                "cloudInit": ""
+                            }
+                        ]
+                    },
+                    "adminPublicKey": { "value": "[parameters('adminPublicKey')]" },
+                    "adminUsername": { "value": "[parameters('adminUsername')]" }
+                }
+            }
+        },
+        {
+            "name": "firewall",
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2024-11-01",
+            "dependsOn": [ "virtual_machines" ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "relativePath": "deployment_firewall.json"
+                },
+                "parameters": {
+                    "location": { "value": "[parameters('location')]" }
+                }
+            }
+        }
+    ],
+    "outputs": {}
+}

@@ -1,0 +1,47 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "vNetNameWazuh": {
+            "type": "string",
+            "defaultValue": "Wazuh"
+        },
+        "vNetNameIngest": {
+            "type": "string",
+            "defaultValue": "ingest"
+        }
+    },
+    "functions": [],
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+            "apiVersion": "2024-05-01",
+            "name": "[format('{0}/{1}', parameters('vNetNameWazuh'), format('{0}-{1}', parameters('vNetNameWazuh'), parameters('vNetNameIngest')))]",
+            "properties": {
+                "allowVirtualNetworkAccess": true,
+                "allowForwardedTraffic": false,
+                "allowGatewayTransit": false,
+                "useRemoteGateways": false,
+                "remoteVirtualNetwork": {
+                    "id": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vNetNameIngest'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+            "apiVersion": "2024-05-01",
+            "name": "[format('{0}/{1}', parameters('vNetNameIngest'), format('{0}-{1}', parameters('vNetNameIngest'), parameters('vNetNameWazuh')))]",
+            "properties": {
+                "allowVirtualNetworkAccess": true,
+                "allowForwardedTraffic": false,
+                "allowGatewayTransit": false,
+                "useRemoteGateways": false,
+                "remoteVirtualNetwork": {
+                    "id": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vNetNameWazuh'))]"
+                }
+            }
+        }
+    ],
+    "outputs": {}
+}

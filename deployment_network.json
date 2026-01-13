@@ -1,0 +1,189 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]"
+        },
+
+        "vNetNameWazuh": {
+            "type": "string",
+            "defaultValue": "Wazuh"
+        },
+        "vNetAddressSpaceWazuh": {
+            "type": "string",
+            "defaultValue": "10.10.0.0/16"
+        },
+        "wazuhSubnets": {
+            "type": "array",
+            "defaultValue": [
+                {
+                    "name": "dashboard",
+                    "prefix": "10.10.10.0/24",
+                    "nsgId": ""
+                },
+                {
+                    "name": "server",
+                    "prefix": "10.10.20.0/24",
+                    "nsgId": ""
+                },
+                {
+                    "name": "indexer",
+                    "prefix": "10.10.30.0/24",
+                    "nsgId": ""
+                }
+            ],
+            "metadata": {
+                "description": "Array of subnet objects: { name, prefix, nsgId (optional, empty string = none) }"
+            }
+        },
+        "vNetNameIngest": {
+            "type": "string",
+            "defaultValue": "ingest"
+        },
+        "vNetAddressSpaceIngest": {
+            "type": "string",
+            "defaultValue": "10.20.0.0/16"
+        },
+        "ingestSubnets": {
+            "type": "array",
+            "defaultValue": [
+                {
+                    "name": "ingest",
+                    "prefix": "10.20.10.0/24",
+                    "nsgId": ""
+                },
+                {
+                    "name": "AzureFirewallSubnet",
+                    "prefix": "10.20.20.0/26",
+                    "nsgId": ""
+                },
+                {
+                    "name": "AzureFirewallManagementSubnet",
+                    "prefix": "10.20.30.0/26",
+                    "nsgId": ""
+                }
+            ]
+        }
+    },
+    "variables": {
+        "wazuhDashboardSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vNetNameWazuh'), 'dashboard')]",
+        "wazuhServerSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vNetNameWazuh'), 'server')]",
+        "wazuhIndexerSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vNetNameWazuh'), 'indexer')]",
+        "ingestSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vNetNameIngest'), 'ingest')]",
+        "ingestFireWallSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vNetNameIngest'), 'ingAzureFirewallSubnetest')]",
+        "ingestFireWallManSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vNetNameIngest'), 'AzureFirewallManagementSubnet')]"
+    },
+    "resources": [
+        {
+            "name": "[parameters('vNetNameWazuh')]",
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2024-05-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[parameters('vNetAddressSpaceWazuh')]"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-05-01",
+            "name": "[format('{0}/{1}', parameters('vNetNameWazuh'), parameters('wazuhSubnets')[copyIndex('wazuhSubnetCopy')].name)]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('vNetNameWazuh'))]"
+            ],
+            "copy": {
+                "name": "wazuhSubnetCopy",
+                "count": "[length(parameters('wazuhSubnets'))]",
+                "mode": "serial",
+                "batchSize": 1
+            },
+            "properties": {
+                "addressPrefix": "[parameters('wazuhSubnets')[copyIndex('wazuhSubnetCopy')].prefix]",
+                // als nsgid "" (leeg) is dan komt krijgt deze property null, als er wel een nsgid bestaat bouw dan een json string { id: nsgid}
+                "networkSecurityGroup": "[if(equals(parameters('wazuhSubnets')[copyIndex('wazuhSubnetCopy')].nsgId, ''), json('null'), createObject('id', parameters('wazuhSubnets')[copyIndex('wazuhSubnetCopy')].nsgId))]"
+            }
+        },
+        {
+            "name": "[parameters('vNetNameIngest')]",
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2024-05-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[parameters('vNetAddressSpaceIngest')]"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-05-01",
+            "name": "[format('{0}/{1}', parameters('vNetNameIngest'), parameters('ingestSubnets')[copyIndex('ingestSubnetCopy')].name)]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('vNetNameIngest'))]"
+            ],
+            "copy": {
+                "name": "ingestSubnetCopy",
+                "count": "[length(parameters('ingestSubnets'))]",
+                "mode": "serial",
+                "batchSize": 1
+            },
+            "properties": {
+                "addressPrefix": "[parameters('ingestSubnets')[copyIndex('ingestSubnetCopy')].prefix]",
+                // als nsgid "" (leeg) is dan komt krijgt deze property null, als er wel een nsgid bestaat bouw dan een json string { id: nsgid}
+                "networkSecurityGroup": "[if(equals(parameters('ingestSubnets')[copyIndex('ingestSubnetCopy')].nsgId, ''), json('null'), createObject('id', parameters('ingestSubnets')[copyIndex('ingestSubnetCopy')].nsgId))]"
+            }
+        }
+
+    ],
+    "outputs": {
+        "wazuhDashboardSubnet": {
+            "type": "object",
+            "value": {
+                "subnetId": "[variables('wazuhDashboardSubnetId')]",
+                "name": "[parameters('wazuhSubnets')[0].name]"
+            }
+        },
+        "wazuhServerSubnet": {
+            "type": "object",
+            "value": {
+                "subnetId": "[variables('wazuhServerSubnetId')]",
+                "name": "[parameters('wazuhSubnets')[1].name]"
+            }
+        },
+        "wazuhIndexerSubnet": {
+            "type": "object",
+            "value": {
+                "subnetId": "[variables('wazuhIndexerSubnetId')]",
+                "name": "[parameters('wazuhSubnets')[2].name]"
+            }
+        },
+        "ingestSubnet": {
+            "type": "object",
+            "value": {
+                "subnetId": "[variables('ingestSubnetId')]",
+                "name": "[parameters('ingestSubnets')[0].name]"
+            }
+        },
+        "ingestFirewallSubnet": {
+            "type": "object",
+            "value": {
+                "subnetId": "[variables('ingestFireWallSubnetId')]",
+                "name": "[parameters('ingestSubnets')[1].name]"
+            }
+        },
+        "ingestFirewallManSubnet": {
+            "type": "object",
+            "value": {
+                "subnetId": "[variables('ingestFireWallManSubnetId')]",
+                "name": "[parameters('ingestSubnets')[2].name]"
+            }
+        }
+    }
+}
